@@ -3,8 +3,9 @@ namespace :load do
     set :precompile_env,   fetch(:rails_env) || 'production'
     set :assets_dir,       "public/assets"
     set :packs_dir,        "public/packs"    
-    set :rsync_cmd,        "rsync -av --delete"
-    set :assets_role,      "web"
+    set :remote_assets_dir, "assets"
+    set :remote_packs_dir, "packs"
+    set :rsync_cmd,        "gsutil -m rsync -d -r"
 
     after "bundler:install", "deploy:assets:prepare"
     after "deploy:assets:prepare", "deploy:assets:rsync"
@@ -36,11 +37,9 @@ namespace :deploy do
 
     desc "Performs rsync to app servers"
     task :rsync do
-      on roles(fetch(:assets_role)) do |server|
-        run_locally do
-          execute "#{fetch(:rsync_cmd)} ./#{fetch(:assets_dir)}/ #{server.user}@#{server.hostname}:#{release_path}/#{fetch(:assets_dir)}/" if Dir.exists?(fetch(:assets_dir))
-          execute "#{fetch(:rsync_cmd)} ./#{fetch(:packs_dir)}/ #{server.user}@#{server.hostname}:#{release_path}/#{fetch(:packs_dir)}/" if Dir.exists?(fetch(:packs_dir))
-        end
+      run_locally do
+        execute "#{fetch(:rsync_cmd)} ./#{fetch(:assets_dir)}/ gs://#{fetch(:gcloud_bucket)}/#{fetch(:remote_assets_dir)}" if Dir.exists?(fetch(:assets_dir))
+        execute "#{fetch(:rsync_cmd)} ./#{fetch(:packs_dir)}/ gs://#{fetch(:gcloud_bucket)}/#{fetch(:remote_packs_dir)}" if Dir.exists?(fetch(:packs_dir))
       end
     end
   end
