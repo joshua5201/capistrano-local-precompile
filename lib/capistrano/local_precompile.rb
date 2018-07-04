@@ -9,7 +9,8 @@ namespace :load do
 
     after "bundler:install", "deploy:assets:prepare"
     after "deploy:assets:prepare", "deploy:assets:rsync"
-    after "deploy:assets:rsync", "deploy:assets:cleanup"
+    after "deploy:assets:rsync", "deploy:assets:manifests"
+    after "deploy:assets:manifests", "deploy:assets:cleanup"
   end
 end
 
@@ -40,6 +41,16 @@ namespace :deploy do
       run_locally do
         execute "#{fetch(:rsync_cmd)} ./#{fetch(:assets_dir)}/ gs://#{fetch(:gcloud_bucket)}/#{fetch(:remote_assets_dir)}" if Dir.exists?(fetch(:assets_dir))
         execute "#{fetch(:rsync_cmd)} ./#{fetch(:packs_dir)}/ gs://#{fetch(:gcloud_bucket)}/#{fetch(:remote_packs_dir)}" if Dir.exists?(fetch(:packs_dir))
+      end
+    end
+
+    desc "Upload manifests to rails server"
+    task :manifests do
+      on roles("web") do |server|
+        run_locally do
+          execute "scp ./#{fetch(:assets_dir)}/.sprockets-manifest-* #{server.user}@#{server.hostname}:#{release_path}/#{fetch(:assets_dir)}/" 
+          execute "scp ./#{fetch(:packs_dir)}/manifest.json* #{server.user}@#{server.hostname}:#{release_path}/#{fetch(:packs_dir)}/"
+        end
       end
     end
   end
